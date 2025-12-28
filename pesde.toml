@@ -1,0 +1,8 @@
+name = "pillarworks/packages"
+version = "0.0.0"
+private = true
+
+workspace_members = ["pkgs/*"]
+
+[target]
+environment = "roblox"
