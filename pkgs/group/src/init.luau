@@ -5,21 +5,16 @@ export type disconnect = () -> ()
 export type item = Instance | { [string]: any } | (() -> ()) | thread | RBXScriptConnection
 
 local create
-local __extend
 
 export type item_group = {
 	add: (item_group, item: item) -> disconnect,
 	clean: (item_group) -> (),
-	extend: (item_group, cleanup_handler: (item) -> (), items: { item }?) -> item_group,
+	extend: (item_group) -> item_group,
 
 	items: { item },
 	cleanup_handler: (item) -> (),
 	children: { item },
 }
-
-function __extend(self: item_group, new_cleanup_handler: (item) -> (), items: { item }?): item_group
-	return nil :: any
-end
 
 local function group_add(self: item_group, item: any): disconnect
 	local items = self.items
