@@ -21,5 +21,5 @@ end))
 
 task.wait(5)
 
-created_group:cleanup()
+created_group:clean()
 ```

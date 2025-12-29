@@ -15,4 +15,8 @@ local created_region = region.new(workspace.Part, {
 		print(player.Name .. " exited the region")
 	end,
 })
+
+task.wait(5)
+
+region.remove(created_region)
 ```

@@ -7,14 +7,17 @@ local Players = game:GetService("Players")
 local local_player = Players.LocalPlayer
 
 local region = {}
-region.__index = region
 
-local frame_counter = 2
+local MINIMUM_DISTANCE = 0.1
+local MINIMUM_FRAMES = 3
+
+local last_position: Vector3?
+local frame_counter = 0
 
 local tracked_regions = {}
 local render_connection
 
-local function is_inside(created_region, root)
+local function is_inside_region(created_region, root)
 	local in_region = created_region.box.CFrame:PointToObjectSpace(root.Position)
 	local half_size = created_region.box.Size / 2
 
@@ -33,7 +36,7 @@ local function ensure_render_stepped()
 	render_connection = RunService.RenderStepped:Connect(function()
 		frame_counter += 1
 
-		if frame_counter % 2 ~= 0 then
+		if frame_counter % MINIMUM_FRAMES ~= 0 then
 			return
 		end
 
@@ -49,8 +52,16 @@ local function ensure_render_stepped()
 			return
 		end
 
-		for _, created_region in pairs(tracked_regions) do
-			local is_inside = is_inside(created_region, root)
+		local current_position = root.Position
+
+		if last_position == nil or (current_position - last_position).Magnitude < MINIMUM_DISTANCE then
+			return
+		end
+
+		last_position = current_position
+
+		for _, created_region in ipairs(tracked_regions) do
+			local is_inside = is_inside_region(created_region, root)
 
 			if is_inside and not created_region.player_inside then
 				created_region.player_inside = true
@@ -73,6 +84,9 @@ function region.new(box: BasePart, callbacks: { enter: () -> (), exit: () -> () 
 	assert(box and box:IsA("BasePart"), "box must be a valid BasePart")
 	assert(typeof(callbacks) == "table", "callbacks must be a table")
 
+	assert(callbacks.enter == nil or type(callbacks.enter) == "function", "callbacks.enter must be a function")
+	assert(callbacks.exit == nil or type(callbacks.exit) == "function", "callbacks.exit must be a function")
+
 	local created_region = {
 		box = box,
 		callbacks = callbacks,
@@ -87,7 +101,7 @@ function region.new(box: BasePart, callbacks: { enter: () -> (), exit: () -> () 
 end
 
 function region.remove(region_object)
-	for index, created_region in pairs(tracked_regions) do
+	for index, created_region in ipairs(tracked_regions) do
 		if created_region == region_object then
 			table.remove(tracked_regions, index)
 

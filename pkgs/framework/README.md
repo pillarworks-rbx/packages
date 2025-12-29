@@ -1,7 +1,7 @@
 # framework
 
 - this module is a simple module loader, used in [pillarworks](https://github.com/pillarworks-rbx).
-- this is a **shared** module. this will work on the client _and_ server.
+- this is a **shared** module. this will work on the client *and* server.
 
 ## usage
 
@@ -13,6 +13,10 @@ framework.run({
   lifecycles = { "start", "stop" },
   singletons = singletons,
 })
+
+game:BindToClose(function()
+	framework.utils.run_lifecycle(config, "stop", true)
+end)
 ```
 
 ## example singleton

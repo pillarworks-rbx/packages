@@ -1,5 +1,5 @@
 name = "pillarworks/stack"
-version = "0.1.0"
+version = "0.1.1"
 description = "a simple and lightweight stack implementation"
 authors = ["Primiti_ve"]
 repository = "https://github.com/pillarworks-rbx/packages"

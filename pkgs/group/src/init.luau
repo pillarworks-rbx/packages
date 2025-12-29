@@ -1,8 +1,15 @@
 --!optimize 2
 --!native
 
+local types = {
+	"Instance",
+	"function",
+	"thread",
+	"RBXScriptConnection",
+}
+
 export type disconnect = () -> ()
-export type item = Instance | { [string]: any } | (() -> ()) | thread | RBXScriptConnection
+export type item = Instance | (() -> ()) | thread | RBXScriptConnection
 
 local create
 
@@ -13,40 +20,61 @@ export type item_group = {
 
 	items: { item },
 	cleanup_handler: (item) -> (),
-	children: { item },
+	children: { item_group },
+
+	_cleaned: boolean,
 }
 
-local function group_add(self: item_group, item: any): disconnect
+function add(self: item_group, item: item): disconnect
 	local items = self.items
+	local alive = true
 
 	table.insert(items, item)
 
 	return function()
-		local idx = table.find(items, item)
+		if not alive then
+			return
+		end
 
-		if idx then
-			table.remove(items, idx)
+		alive = false
+
+		local index = table.find(items, item)
+
+		if index then
+			table.remove(items, index)
 		end
 	end
 end
 
-local function group_clean(self: item_group)
+function clean(self: item_group)
+	if self._cleaned then
+		return
+	end
+
+	self._cleaned = true
+
 	local items = self.items
-	local cleanup_handler = self.cleanup_handler
+	local handler = self.cleanup_handler
 	local children = self.children
 
-	for _, child: any in children do
+	for _, child: item_group in ipairs(children) do
 		child:clean()
 	end
 
-	for _, item in items do
-		cleanup_handler(item)
+	table.clear(children)
+
+	for _, item: item in ipairs(items) do
+		local ok, err = pcall(handler, item)
+
+		if not ok then
+			warn("error cleaning item:", err)
+		end
 	end
 
 	table.clear(items)
 end
 
-local function group_extend(self: item_group)
+function extend(self: item_group)
 	local new = create()
 
 	table.insert(self.children, new)
@@ -54,28 +82,34 @@ local function group_extend(self: item_group)
 	return new
 end
 
+function cleanup_handler(item: item)
+	if typeof(item) == "Instance" then
+		item:Destroy()
+	elseif typeof(item) == "function" then
+		item()
+	elseif typeof(item) == "thread" then
+		task.cancel(item)
+	elseif typeof(item) == "RBXScriptConnection" then
+		item:Disconnect()
+	else
+		warn(`error trying to clean item: expected one of {table.concat(types, ", ")}. got {typeof(item)}`)
+	end
+end
+
 function create(): item_group
 	return {
 		items = {},
 		children = {},
 
-		cleanup_handler = function(item: any)
-			if typeof(item) == "Instance" then
-				item:Destroy()
-			elseif typeof(item) == "table" then
-				table.clear(item)
-			elseif typeof(item) == "function" then
-				item()
-			elseif typeof(item) == "thread" then
-				task.cancel(item)
-			elseif typeof(item) == "RBXScriptConnection" then
-				item:Disconnect()
-			end
-		end,
+		cleanup_handler = cleanup_handler,
 
-		clean = group_clean,
-		add = group_add,
-		extend = group_extend,
+		clean = clean,
+		cleanup = clean,
+		
+		add = add,
+		extend = extend,
+
+		_cleaned = false,
 	} :: item_group
 end
 

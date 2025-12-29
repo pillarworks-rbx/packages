@@ -1,5 +1,5 @@
 name = "pillarworks/framework"
-version = "0.1.0"
+version = "0.1.1"
 description = "a simple module loader"
 authors = ["Primiti_ve"]
 repository = "https://github.com/pillarworks-rbx/packages"

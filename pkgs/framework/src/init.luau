@@ -1,15 +1,13 @@
 --!optimize 2
 --!native
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-
 local framework = {}
 
 framework.utils = {}
 
 export type singleton = {
 	identifier: string?,
+	priority: number?,
 
 	init: (self: singleton) -> (),
 	start: (self: singleton) -> (),
@@ -20,37 +18,64 @@ export type singleton = {
 
 export type config = {
 	lifecycles: { string },
-	singletons: { singleton } | { [string]: singleton },
+	singletons: { singleton },
 
 	dependencies: {
-		task: typeof(task)?,
+		task: {
+			spawn: (fn: (...any) -> (), ...any) -> (),
+		}?,
 	}?,
 }
 
-function framework.utils.run_lifecycle(config: config, lifecycle: string, parallel: boolean?)
-	if parallel == nil then
-		parallel = false
-	end
+type absolute_config = config & {
+	internal: {
+		lifecycle_set: { [string]: true },
+	},
+}
 
-	if not table.find(config.lifecycles, lifecycle) then
+local function for_each_lifecycle(
+	config: absolute_config,
+	lifecycle: string,
+	executor: (fn: (singleton) -> (), singleton: singleton) -> ()
+)
+	if not config.internal.lifecycle_set[lifecycle] then
 		return
 	end
 
-	for _, singleton: singleton in pairs(config.singletons) do
-		if not singleton[lifecycle] then
+	for _, singleton in ipairs(config.singletons) do
+		local fn = singleton[lifecycle]
+
+		if type(fn) ~= "function" then
 			continue
 		end
 
-		local success, err = pcall(function()
-			if parallel then
-				local dependencies = config["dependencies"] or {}
-				local task_lib = dependencies["task"] or task
+		executor(fn, singleton)
+	end
+end
 
-				task_lib.spawn(singleton[lifecycle], singleton)
-			else
-				singleton[lifecycle](singleton)
+function framework.utils.run_parallel_lifecycle(config: absolute_config, lifecycle: string)
+	local task_lib = (config.dependencies and config.dependencies.task) or task
+
+	for_each_lifecycle(config, lifecycle, function(fn, singleton)
+		task_lib.spawn(function()
+			local success, err = pcall(fn, singleton)
+
+			if not success then
+				local identifier = singleton.identifier
+
+				if identifier then
+					warn(`error running {lifecycle} for {identifier}: {err}`)
+				else
+					warn(`error running {lifecycle}: {err}`)
+				end
 			end
 		end)
+	end)
+end
+
+function framework.utils.run_lifecycle(config: absolute_config, lifecycle: string)
+	for_each_lifecycle(config, lifecycle, function(fn, singleton)
+		local success, err = pcall(fn, singleton)
 
 		if not success then
 			local identifier = singleton.identifier
@@ -61,33 +86,51 @@ function framework.utils.run_lifecycle(config: config, lifecycle: string, parall
 				warn(`error running {lifecycle}: {err}`)
 			end
 		end
-	end
+	end)
 end
 
 function framework.run(config: config)
-	framework.utils.run_lifecycle(config, "init", false)
-	framework.utils.run_lifecycle(config, "start", true)
+	local absolute_config: absolute_config = {
+		singletons = config.singletons or {},
+		lifecycles = config.lifecycles or {},
 
-	if RunService:IsServer() then
-		game:BindToClose(function()
-			framework.utils.run_lifecycle(config, "stop", true)
-		end)
-	else
-		local player = Players.LocalPlayer or Players.PlayerAdded:Wait()
-		local character = player.Character or player.CharacterAdded:Wait()
+		dependencies = config.dependencies or {},
 
-		local humanoid = character:WaitForChild("Humanoid")
-		local connection: RBXScriptConnection?
+		internal = {
+			lifecycle_set = {} :: { [string]: true },
+		},
+	}
 
-		connection = humanoid.Died:Connect(function()
-			framework.utils.run_lifecycle(config, "stop", true)
+	if #absolute_config.singletons > 0 then
+		table.sort(absolute_config.singletons, function(a: singleton, b: singleton): boolean
+			local a_priority = a.priority or 0
+			local b_priority = b.priority or 0
 
-			if connection and typeof(connection) == "RBXScriptConnection" then
-				connection:Disconnect()
-				connection = nil
-			end
+			a_priority = math.clamp(a_priority, 0, math.huge)
+			b_priority = math.clamp(b_priority, 0, math.huge)
+
+			return a_priority > b_priority
 		end)
 	end
+
+	if #absolute_config.lifecycles == 0 then
+		warn("framework.run called with no lifecycles configured")
+	else
+		for _, lifecycle in ipairs(absolute_config.lifecycles) do
+			absolute_config.internal.lifecycle_set[lifecycle] = true
+		end
+	end
+
+	table.freeze(absolute_config)
+
+	framework.utils.run_lifecycle(absolute_config, "init")
+	framework.utils.run_parallel_lifecycle(absolute_config, "start")
+
+	return absolute_config
+end
+
+function framework.stop(absolute_config: absolute_config)
+	framework.utils.run_lifecycle(absolute_config, "stop")
 end
 
 return framework
