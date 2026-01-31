@@ -1,5 +1,5 @@
 name = "pillarworks/group"
-version = "0.1.2"
+version = "0.1.3"
 description = "a lightweight memory management module"
 authors = ["Primiti_ve", "athar_adv"]
 repository = "https://github.com/pillarworks-rbx/packages"
