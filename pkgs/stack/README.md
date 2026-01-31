@@ -2,6 +2,7 @@
 
 - this module is the implementation of a "stack" data structure, used in [pillarworks](https://github.com/pillarworks-rbx).
 - this is a **shared** module. this will work on the client *and* server.
+- this is a pure luau module. for convenience, it is only published under the roblox target, but you can vendor it in.
 
 ## usage
 ```lua

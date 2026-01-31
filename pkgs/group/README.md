@@ -3,6 +3,7 @@
 - this module is a simple memory management module, used in [pillarworks](https://github.com/pillarworks-rbx).
 - this is a **shared** module. this will work on the client *and* server.
 - all credits goes to [athar_adv](https://devforum.roblox.com/u/athar_adv) for the original module that you can find [here](https://devforum.roblox.com/t/110-itemgroup-type-safe-and-lightweight-cleanup-module/4151183).
+- this is a pure luau module. for convenience, it is only published under the roblox target, but you can vendor it in.
 
 ## usage
 ```lua

@@ -5,4 +5,4 @@ private = true
 workspace_members = ["pkgs/*"]
 
 [target]
-environment = "roblox"
+environment = "luau"

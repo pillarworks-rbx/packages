@@ -4,7 +4,12 @@
 local stack = {}
 stack.__index = stack
 
-function stack.new(maximum_size: number)
+export type stack = typeof(stack) & {
+	_stack: { any },
+	_maximum_size: number,
+}
+
+function stack.new(maximum_size: number): stack
 	assert(type(maximum_size) == "number", "maximum_size must be a number")
 	assert(maximum_size >= 1, "maximum_size must be >= 1")
 
@@ -18,7 +23,7 @@ function stack.new(maximum_size: number)
 	return self
 end
 
-function stack:is_empty()
+function stack.is_empty(self: stack): boolean
 	if not self._stack then
 		return true
 	end
@@ -30,7 +35,7 @@ function stack:is_empty()
 	return #self._stack == 0
 end
 
-function stack:push(value)
+function stack.push(self: stack, value: any)
 	table.insert(self._stack, value)
 
 	if #self._stack > self._maximum_size then
@@ -38,7 +43,7 @@ function stack:push(value)
 	end
 end
 
-function stack:pop(): any?
+function stack.pop(self: stack): any?
 	if self:is_empty() then
 		return nil
 	end
@@ -46,7 +51,7 @@ function stack:pop(): any?
 	return table.remove(self._stack, #self._stack)
 end
 
-function stack:peek(): any?
+function stack.peek(self: stack): any?
 	if self:is_empty() then
 		return nil
 	end
@@ -54,11 +59,11 @@ function stack:peek(): any?
 	return self._stack[#self._stack]
 end
 
-function stack:size(): number
+function stack.size(self: stack): number
 	return #self._stack
 end
 
-function stack:clear()
+function stack.clear(self: stack)
 	table.clear(self._stack)
 	self._stack = {}
 end

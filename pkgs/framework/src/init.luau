@@ -4,6 +4,17 @@
 local framework = {}
 
 framework.utils = {}
+framework.environment = ""
+
+local is_roblox = pcall(function(...)
+	return game
+end)
+
+if is_roblox then
+	framework.environment = "roblox"
+else
+	framework.environment = "luau"
+end
 
 export type singleton = {
 	identifier: string?,
@@ -54,7 +65,19 @@ local function for_each_lifecycle(
 end
 
 function framework.utils.run_parallel_lifecycle(config: absolute_config, lifecycle: string)
-	local task_lib = (config.dependencies and config.dependencies.task) or task
+	local task_lib = (config.dependencies and config.dependencies.task)
+
+	if framework.environment == "roblox" and task_lib == nil then
+		task_lib = task
+	end
+
+	if task_lib == nil then
+		warn("task library not found! falling back to sequential execution...")
+
+		framework.utils.run_lifecycle(config, lifecycle)
+
+		return
+	end
 
 	for_each_lifecycle(config, lifecycle, function(fn, singleton)
 		task_lib.spawn(function()
